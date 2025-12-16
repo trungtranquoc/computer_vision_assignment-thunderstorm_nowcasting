@@ -26,13 +26,16 @@ def average_storm_movement(storm: StormObject, map_shape: tuple[int, int], grid_
     return (dy, dx)
 
 def estimate_trec_by_blocks(prev_map: StormsMap, curr_map: StormsMap, 
-                       block_size: int=16, stride: int=16, local_buffer: int=50):
+                       block_size: int=16, stride: int=16, max_velocity: float=100):
         """
         Use TREC to estimate the velocity field between 2 frames. This is used as the first guess for storm matching.
         """
         dbz_map_1 = prev_map.dbz_map
         dbz_map_2 = curr_map.dbz_map
         H, W = dbz_map_2.shape
+
+        dt = (curr_map.time_frame - prev_map.time_frame).seconds / 3600   # scaled to hour
+        local_buffer = int(max_velocity * dt)
 
         ys = list(range(0, H-block_size+1, stride))     # ys: list[start_idx of H-axis]
         xs = list(range(0, W-block_size+1, stride))     # xs: list[start_idx of W-axis]
