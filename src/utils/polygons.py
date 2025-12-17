@@ -13,7 +13,13 @@ def convert_contours_to_polygons(contours: list[Union[np.ndarray, list[np.ndarra
     
     polygons = []
     for contour in contours:
-        polygon = Polygon(contour.squeeze(axis=1))
+        # Handle case contour have 3 points, which cause Polygon to be invalid
+        try:
+            polygon = Polygon(contour.squeeze(axis=1))
+        except ValueError as e:
+            print(f"Error converting contour {contour.squeeze(axis=1)} to polygon: {e}")
+            continue
+
         if not polygon.is_valid:
             polygon = polygon.buffer(0)
 

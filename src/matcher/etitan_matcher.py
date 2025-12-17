@@ -68,6 +68,16 @@ class EtitanMatcher:
         prev_num_storms = len(prev_storms)
         curr_num_storms = len(curr_storms)
 
+        # Handle no storm found cases
+        if curr_num_storms == 0:
+            return []
+        if prev_num_storms == 0:
+            return [MatchedStormPair(
+                prev_storm_order=-1,
+                curr_storm_order=curr_idx,
+                update_type=UpdateType.NEW
+            ) for curr_idx in range(curr_num_storms)]
+
         ## keep track of matched storms
         assignments: list[MatchedStormPair] = []
         prev_matched_set = set()
@@ -96,8 +106,6 @@ class EtitanMatcher:
             assignments.extend([
                     MatchedStormPair(prev_storm_order=i, curr_storm_order=int(curr_order), 
                                         estimated_movement=np.array([dy, dx])
-                                        # estimated_movement=
-                                        # np.array([curr_storms[int(curr_order)].centroid[0] - prev_storms[i].centroid[0], curr_storms[int(curr_order)].centroid[1] - prev_storms[i].centroid[1]])
                                     ) 
                     for curr_order in matching_indices
                 ])
