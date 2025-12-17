@@ -3,12 +3,13 @@ import cv2
 import numpy as np
 
 class MorphContourIdentifier(BaseStormIdentifier):
-    def __init__(self, n_thresh: int = 3, center_filter: int = 10):
+    def __init__(self, n_thresh: int = 3, center_filter: int = 10, kernel_size: int=3):
         self.n_thresh = n_thresh
         self.center_filter = center_filter
+        self.kernel_size = kernel_size
 
     def identify_storm(self, dbz_map: np.ndarray, threshold: int = 30, filter_area: int = 30) -> list[np.ndarray]:
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3,3))
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (self.kernel_size,self.kernel_size))
 
         # erode for removing weak connection
         lowest_mask = cv2.erode((dbz_map > threshold).astype(np.uint8), kernel)
