@@ -1,3 +1,4 @@
 *.pyc
 .DS_Store
 data/images/
+data/numpy_grid/
