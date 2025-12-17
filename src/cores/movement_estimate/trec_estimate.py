@@ -1,57 +1,48 @@
 import numpy as np
 import cv2
-from skimage.measure import block_reduce
 
-from src.cores.base import StormObject, StormsMap
-from src.utils import convert_polygons_to_contours
+from src.cores.base import StormsMap
+from .base import BaseTREC
 
-def average_storm_movement(storm: StormObject, map_shape: tuple[int, int], grid_y: np.ndarray, grid_x: np.ndarray, vy: np.ndarray, vx: np.ndarray) -> tuple[float, float]:
-    """
-    Aproximating the movement of the storm using the velocity field, given the movement grids and velocity components.
-    Returns (dy, dx)
-    """
-    block_size = int(grid_y[0] * 2)
+class TREC(BaseTREC):
+    block_size: int
+    stride: int
+    max_velocity: float
 
-    contours = convert_polygons_to_contours([storm.contour])
-    mask = np.zeros(map_shape, dtype=np.uint8)
-    cv2.fillPoly(mask, contours, color=1)
+    def __init__(self, block_size: int = 8, stride: int = 8, max_velocity: float = 100):
+        super().__init__()
+        self.block_size = block_size
+        self.stride = stride
+        self.max_velocity = max_velocity
 
-    crop_mask = mask[0:block_size * len(grid_y), 0:block_size * len(grid_x)]
-
-    block_mask = block_reduce(crop_mask, block_size=(block_size,block_size), func=np.sum)
-    total = np.sum(block_mask) + 1e-8
-    dy = np.sum(vy * block_mask) / total
-    dx = np.sum(vx * block_mask) / total
-
-    return (dy, dx)
-
-def estimate_trec_by_blocks(prev_map: StormsMap, curr_map: StormsMap, 
-                       block_size: int=16, stride: int=16, max_velocity: float=100):
+    def estimate_movement(
+            self, prev_map: StormsMap, curr_map: StormsMap
+        ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """
-        Use TREC to estimate the velocity field between 2 frames. This is used as the first guess for storm matching.
+        Estimate a field-based motion map using TREC. Returns (grid_y, grid_x, vy, vx).
         """
         dbz_map_1 = prev_map.dbz_map
         dbz_map_2 = curr_map.dbz_map
         H, W = dbz_map_2.shape
 
         dt = (curr_map.time_frame - prev_map.time_frame).seconds / 3600   # scaled to hour
-        local_buffer = int(max_velocity * dt)
+        local_buffer = int(self.max_velocity * dt)
 
-        ys = list(range(0, H-block_size+1, stride))     # ys: list[start_idx of H-axis]
-        xs = list(range(0, W-block_size+1, stride))     # xs: list[start_idx of W-axis]
+        ys = list(range(0, H-self.block_size+1, self.stride))     # ys: list[start_idx of H-axis]
+        xs = list(range(0, W-self.block_size+1, self.stride))     # xs: list[start_idx of W-axis]
 
         vy = np.zeros(shape=(len(ys), len(xs)))         # vy: keep the y-value of movement at corresponding position
         vx = np.zeros_like(vy)                          # vx: keep the y-value of movement at corresponding position
 
         for i, y in enumerate(ys):
             for j, x in enumerate(xs):
-                block = dbz_map_1[y:y+block_size, x:x+block_size]
+                block = dbz_map_1[y:y+self.block_size, x:x+self.block_size]
                 if np.std(block) < 1e-3:    # case std is too small => continue
                     continue
 
                 # otherwise: get the search region
-                y_search_low, y_search_high = max(0,y-local_buffer), min(H,y + block_size + local_buffer)   # ensure the seach region is not overflow.
-                x_search_low, x_search_high = max(0,x-local_buffer), min(W,x + block_size + local_buffer)
+                y_search_low, y_search_high = max(0,y-local_buffer), min(H,y + self.block_size + local_buffer)   # ensure the seach region is not overflow.
+                x_search_low, x_search_high = max(0,x-local_buffer), min(W,x + self.block_size + local_buffer)
 
                 # Perform template matching
                 search_region = dbz_map_2[y_search_low:y_search_high, x_search_low:x_search_high]
@@ -64,7 +55,7 @@ def estimate_trec_by_blocks(prev_map: StormsMap, curr_map: StormsMap,
                 vx[i][j] = x_best - x
         
         # Get the center of the block
-        grid_y = np.array(ys) + block_size / 2
-        grid_x = np.array(xs) + block_size / 2
+        grid_y = np.array(ys) + self.block_size / 2
+        grid_x = np.array(xs) + self.block_size / 2
 
         return grid_y, grid_x, vy, vx

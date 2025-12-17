@@ -6,6 +6,7 @@ from src.cores.base import StormsMap, StormObject, TrackingHistory, UpdateType
 from src.identification import MorphContourIdentifier
 from src.matcher import EtitanMatcher, MatchedStormPair
 from src.utils import convert_contours_to_polygons, convert_polygons_to_contours, spectral_colors
+from src.cores.movement_estimate import BaseTREC
 
 class ETitanPrecipitationModel:
     """
@@ -16,10 +17,10 @@ class ETitanPrecipitationModel:
     tracker: TrackingHistory
     matcher: EtitanMatcher
 
-    def __init__(self, identifier: MorphContourIdentifier):
+    def __init__(self, identifier: MorphContourIdentifier, trec: BaseTREC = None):
         self.identifier = identifier
         self.storms_maps = []
-        self.matcher = EtitanMatcher(self._dynamic_max_velocity)
+        self.matcher = EtitanMatcher(self._dynamic_max_velocity, trec)
         self.tracker = None
 
     def _dynamic_max_velocity(self, area: float) -> float:

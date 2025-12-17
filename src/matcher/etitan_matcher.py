@@ -6,7 +6,7 @@ from scipy.optimize import linear_sum_assignment
 
 from src.cores.base import StormObject, StormsMap, UpdateType
 from src.cores.metrics import area_overlapping_ratio
-from src.cores.movement_estimate import estimate_trec_by_blocks, average_storm_movement
+from src.cores.movement_estimate import BaseTREC
 
 @dataclass
 class MatchedStormPair:
@@ -24,9 +24,11 @@ class MatchedStormPair:
 
 class EtitanMatcher:
     dynamic_max_velocity: Callable[[float], float]      # dynamic constraint for maximum velocity
+    trec: BaseTREC
 
-    def __init__(self, dynamic_max_velocity: Callable[[float], float]):
+    def __init__(self, dynamic_max_velocity: Callable[[float], float], trec: BaseTREC):
         self.dynamic_max_velocity = dynamic_max_velocity
+        self.trec = trec
     
     def _construct_disparity_matrix(
             self, storm_lst1: list[StormObject], storm_lst2: list[StormObject]
@@ -48,7 +50,7 @@ class EtitanMatcher:
     
     def match_storms(
             self, storms_map_1: StormsMap, storms_map_2: StormsMap, 
-            correlation_block_size: int = 16, matching_overlap_threshold: float = 0.5
+            matching_overlap_threshold: float = 0.5     # for TREC overlapping matching
         ) -> list[MatchedStormPair]:
         """
         Match storms between 2 time frame.
@@ -82,12 +84,14 @@ class EtitanMatcher:
         curr_matched_set = set()
         
         # 1. matching using TREC forecasting + movement estimation
-        grid_y, grid_x, vy, vx = estimate_trec_by_blocks(storms_map_1, storms_map_2, block_size=correlation_block_size, 
-                                                     stride=correlation_block_size)
+        grid_y, grid_x, vy, vx = self.trec.estimate_movement(storms_map_1, storms_map_2)
+
         curr_polygons = [storm.contour for storm in storms_map_2.storms]
 
         for i, prev_storm in enumerate(storms_map_1.storms):
-            dy, dx = average_storm_movement(prev_storm, storms_map_1.dbz_map.shape[:2], grid_y, grid_x, vy, vx)
+            dy, dx = self.trec.average_storm_movement(
+                prev_storm, storms_map_1.dbz_map.shape[:2], grid_y, grid_x, vy, vx
+            )
             pred_pol = translate(prev_storm.contour, xoff=dx, yoff=dy)
 
             matching_indices = [curr_order for curr_order, curr_pol in enumerate(curr_polygons) if \
