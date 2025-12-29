@@ -38,3 +38,7 @@ main.ipynb                      # quick run / demo notebook
 evaluation_notebooks.ipynb      # evaluation & metrics
 README.md
 ```
+
+## Running code
+
+To run this code, first clone the repository and unzip the file `images.zip`. Then, all codes from the notebook `evaluation_notebooks.ipynb` can be run.

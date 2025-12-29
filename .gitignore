@@ -1,4 +1,4 @@
 *.pyc
 .DS_Store
-data/images/
+# data/images/
 data/numpy_grid/
